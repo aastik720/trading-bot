@@ -18,7 +18,7 @@ from typing import List, Optional
 
 # Load .env file
 try:
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv, set_key  # ← ADDED set_key import
 except ImportError:
     print("ERROR: python-dotenv not installed!")
     print("Run: pip install python-dotenv")
@@ -48,19 +48,20 @@ class Settings:
         """Find and load the .env file."""
         # Find project root (where .env should be)
         current_dir = Path(__file__).resolve().parent.parent
-        env_path = current_dir / '.env'
+        self._env_path = current_dir / '.env'  # ← CHANGED: store path for later use
         
-        if env_path.exists():
-            load_dotenv(env_path)
+        if self._env_path.exists():
+            load_dotenv(self._env_path)
             self._env_loaded = True
         else:
             # Try current working directory
             if Path('.env').exists():
+                self._env_path = Path('.env').resolve()  # ← ADDED
                 load_dotenv('.env')
                 self._env_loaded = True
             else:
                 print("WARNING: .env file not found!")
-                print(f"Expected at: {env_path}")
+                print(f"Expected at: {self._env_path}")
                 print("Copy .env.example to .env and fill in your keys.")
                 self._env_loaded = False
     
@@ -269,6 +270,55 @@ class Settings:
         else:
             return 1
     
+    # ══════════════════════════════════════════════════════
+    # TOKEN UPDATE METHODS (NEW - for Telegram /set_token)
+    # ══════════════════════════════════════════════════════
+    
+    def update_dhan_token(self, new_token: str) -> bool:
+        """
+        Update Dhan access token in 3 places:
+        1. In memory (current running session)
+        2. In os.environ (current process)
+        3. In .env file (survives restart)
+        
+        Args:
+            new_token: The new Dhan access token
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if not new_token or not new_token.strip():
+                raise ValueError("Token cannot be empty")
+            
+            new_token = new_token.strip()
+            
+            # 1. Update in memory
+            self.DHAN_ACCESS_TOKEN = new_token
+            
+            # 2. Update environment variable
+            os.environ["DHAN_ACCESS_TOKEN"] = new_token
+            
+            # 3. Update .env file (persists across restarts)
+            if self._env_path and self._env_path.exists():
+                set_key(str(self._env_path), "DHAN_ACCESS_TOKEN", new_token)
+            
+            return True
+            
+        except Exception as e:
+            print(f"[Settings] Failed to update token: {e}")
+            return False
+    
+    def get_masked_token(self) -> str:
+        """
+        Return masked token for safe display.
+        Example: 'eyJ0eX...k4Mg'
+        """
+        token = self.DHAN_ACCESS_TOKEN
+        if not token or len(token) < 10:
+            return "NOT SET"
+        return f"{token[:6]}...{token[-4:]}"
+    
     def print_config(self):
         """Print current configuration (hide sensitive data)."""
         print("\n" + "=" * 55)
@@ -300,6 +350,7 @@ class Settings:
         
         # API Keys (show if present, not the actual values)
         print(f"\n  Dhan API:        {'Configured' if self.DHAN_CLIENT_ID else 'NOT SET'}")
+        print(f"  Dhan Token:      {self.get_masked_token()}")  # ← CHANGED: uses masked token
         print(f"  Finnhub API:     {'Configured' if self.FINNHUB_API_KEY else 'NOT SET'}")
         print(f"  Telegram Bot:    {'Configured' if self.TELEGRAM_BOT_TOKEN else 'NOT SET'}")
         
@@ -327,5 +378,8 @@ if __name__ == "__main__":
     # Test convenience methods
     print(f"\n  Paper Mode:      {settings.is_paper_mode()}")
     print(f"  NIFTY Lot Size:  {settings.get_lot_size('NIFTY')}")
+    
+    # Test new token methods
+    print(f"  Masked Token:    {settings.get_masked_token()}")
     
     print("\n  Settings loaded successfully!")

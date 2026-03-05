@@ -1,5 +1,5 @@
 """
-Telegram Command Handlers — All 22 Commands + Button Menus
+Telegram Command Handlers — All 25 Commands + Button Menus
 ============================================================
 
 Uses pyTelegramBotAPI (telebot) — synchronous, thread-safe.
@@ -27,6 +27,7 @@ Portfolio:  /portfolio, /positions, /trades, /pnl
 Analysis:   /signals, /brains, /watchlist
 Settings:   /settings, /mode, /risk, /report
 Emergency:  /kill, /close, /closeall
+Token:      /set_token, /check_token, /token_status
 Help:       /help, /menu
 """
 
@@ -63,6 +64,15 @@ try:
 except ImportError:
     BUTTONS_AVAILABLE = False
     types = None
+
+# ── Token management imports (NEW) ──
+try:
+    from config.settings import settings as app_settings
+    from data.dhan_client import get_dhan_client
+    TOKEN_IMPORTS_AVAILABLE = True
+except ImportError:
+    TOKEN_IMPORTS_AVAILABLE = False
+    app_settings = None
 
 logger = logging.getLogger(__name__)
 
@@ -110,6 +120,9 @@ def _main_menu_keyboard():
         ),
     )
     markup.add(
+        types.InlineKeyboardButton(
+            "🔑 Token", callback_data="menu_token",
+        ),
         types.InlineKeyboardButton(
             "❓ Help", callback_data="cmd_help",
         ),
@@ -260,6 +273,27 @@ def _emergency_keyboard():
         ),
         types.InlineKeyboardButton(
             "❌ Close ALL", callback_data="cmd_closeall",
+        ),
+    )
+    markup.add(
+        types.InlineKeyboardButton(
+            "◀️ Back", callback_data="menu_main",
+        ),
+    )
+    return markup
+
+
+def _token_keyboard():
+    """Token management keyboard. (NEW)"""
+    if not BUTTONS_AVAILABLE:
+        return None
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton(
+            "🔍 Check Token", callback_data="cmd_check_token",
+        ),
+        types.InlineKeyboardButton(
+            "📊 Token Status", callback_data="cmd_token_status",
         ),
     )
     markup.add(
@@ -467,6 +501,14 @@ def handle_callback(call, handler):
             "🚨 <b>EMERGENCY</b>\n\n⚠️ Use with caution!",
             _emergency_keyboard(),
         ),
+        "menu_token": (
+            "🔑 <b>TOKEN MANAGEMENT</b>\n\n"
+            "Manage your Dhan API token:\n\n"
+            "• To set a new token, type:\n"
+            "  <code>/set_token YOUR_TOKEN_HERE</code>\n\n"
+            "• Use buttons below to check status:",
+            _token_keyboard(),
+        ),
     }
 
     if data in menu_map:
@@ -498,6 +540,9 @@ def handle_callback(call, handler):
         "cmd_close": cmd_close,
         "cmd_closeall": cmd_closeall,
         "cmd_help": cmd_help,
+        "cmd_set_token": cmd_set_token,
+        "cmd_check_token": cmd_check_token,
+        "cmd_token_status": cmd_token_status,
     }
 
     handler_func = cmd_map.get(data)
@@ -509,8 +554,6 @@ def handle_callback(call, handler):
             f"❓ Unknown action: {data}",
             _back_button(),
         )
-
-
 # ══════════════════════════════════════════════════════════
 # CONTROL COMMANDS
 # ══════════════════════════════════════════════════════════
@@ -953,9 +996,6 @@ def cmd_health(source, handler):
         )
 
 
-# ════════════════════════════════════════════════════════
-#  END OF PART 1 — Continue with Part 2
-# ════════════════════════════════════════════════════════
 # ══════════════════════════════════════════════════════════
 # PORTFOLIO COMMANDS
 # ══════════════════════════════════════════════════════════
@@ -1221,8 +1261,6 @@ def cmd_pnl(source, handler):
         handler.reply(
             source, f"❌ Error: {str(e)[:200]}", _back_button(),
         )
-
-
 # ══════════════════════════════════════════════════════════
 # ANALYSIS COMMANDS
 # ══════════════════════════════════════════════════════════
@@ -1519,9 +1557,6 @@ def cmd_watchlist(source, handler):
         )
 
 
-# ════════════════════════════════════════════════════════
-#  END OF PART 2 — Continue with Part 3
-# ════════════════════════════════════════════════════════
 # ══════════════════════════════════════════════════════════
 # SETTINGS COMMANDS
 # ══════════════════════════════════════════════════════════
@@ -1800,8 +1835,6 @@ def cmd_report(source, handler):
         handler.reply(
             source, f"❌ Error: {str(e)[:200]}", _back_button(),
         )
-
-
 # ══════════════════════════════════════════════════════════
 # EMERGENCY COMMANDS
 # ══════════════════════════════════════════════════════════
@@ -1981,6 +2014,227 @@ def cmd_closeall(source, handler):
 
 
 # ══════════════════════════════════════════════════════════
+# TOKEN MANAGEMENT COMMANDS (NEW)
+# ══════════════════════════════════════════════════════════
+
+def cmd_set_token(source, handler):
+    """
+    /set_token <new_token>
+    Update the Dhan access token on the fly.
+    """
+    try:
+        if not TOKEN_IMPORTS_AVAILABLE:
+            handler.reply(
+                source,
+                "❌ Settings module not available.",
+                _back_button(),
+            )
+            return
+
+        args = _get_args(source)
+
+        if not args:
+            handler.reply(
+                source,
+                "⚠️ <b>Usage:</b> <code>/set_token YOUR_NEW_TOKEN</code>\n\n"
+                "📋 <b>How to get your token:</b>\n"
+                "1️⃣ Login to Dhan Web\n"
+                "2️⃣ Go to API section\n"
+                "3️⃣ Copy your Access Token\n"
+                "4️⃣ Paste it here\n\n"
+                "🔒 Token is stored securely.",
+                _token_keyboard(),
+            )
+            return
+
+        new_token = args[0].strip()
+
+        # Basic validation
+        if len(new_token) < 20:
+            handler.reply(
+                source,
+                "❌ Token seems too short. Please check and try again.",
+                _back_button(),
+            )
+            return
+
+        # Update token in settings + .env file
+        success = app_settings.update_dhan_token(new_token)
+
+        if not success:
+            handler.reply(
+                source,
+                "❌ <b>Failed to save token.</b>\n"
+                "Check bot logs for details.",
+                _back_button(),
+            )
+            return
+
+        # Refresh Dhan client connection with new token
+        dhan_client = get_dhan_client()
+        dhan_client.refresh_connection()
+
+        # Test the new token
+        test_result = dhan_client.test_connection()
+
+        if test_result["connected"]:
+            data = test_result.get("data", {})
+            available = data.get(
+                "availabelBalance",
+                data.get("available_balance", "N/A"),
+            )
+
+            handler.reply(
+                source,
+                f"✅ <b>Token Updated Successfully!</b>\n\n"
+                f"🔑 <b>Token:</b> <code>{app_settings.get_masked_token()}</code>\n"
+                f"🔗 <b>Connection:</b> Active ✅\n"
+                f"💰 <b>Balance:</b> ₹{available}\n"
+                f"🕐 <b>Updated:</b> {get_ist_now().strftime('%H:%M:%S')}\n\n"
+                f"🤖 Bot is ready to trade!",
+                _back_button(),
+            )
+            logger.info("Dhan token updated via /set_token")
+        else:
+            handler.reply(
+                source,
+                f"⚠️ <b>Token saved but connection failed!</b>\n\n"
+                f"🔑 <b>Token:</b> <code>{app_settings.get_masked_token()}</code>\n"
+                f"❌ <b>Error:</b> {_escape_html(test_result['message'])}\n\n"
+                f"Token might be invalid or expired.\n"
+                f"Use /check_token to test again.",
+                _back_button(),
+            )
+            logger.warning(
+                "Token saved but test failed: %s",
+                test_result["message"],
+            )
+
+        # Try to delete the message containing the token (security)
+        try:
+            if hasattr(source, "message_id") and hasattr(handler, "bot"):
+                handler.bot.delete_message(
+                    source.chat.id, source.message_id,
+                )
+                logger.info("Deleted message containing token for security")
+        except Exception:
+            pass
+
+    except Exception as e:
+        logger.error("Error in cmd_set_token: %s", e)
+        handler.reply(
+            source,
+            f"❌ Error: {str(e)[:200]}",
+            _back_button(),
+        )
+
+
+def cmd_check_token(source, handler):
+    """
+    /check_token
+    Check if current Dhan token is valid and working.
+    """
+    try:
+        if not TOKEN_IMPORTS_AVAILABLE:
+            handler.reply(
+                source,
+                "❌ Settings module not available.",
+                _back_button(),
+            )
+            return
+
+        dhan_client = get_dhan_client()
+        test_result = dhan_client.test_connection()
+
+        if test_result["connected"]:
+            data = test_result.get("data", {})
+            available = data.get(
+                "availabelBalance",
+                data.get("available_balance", "N/A"),
+            )
+            utilized = data.get(
+                "utilizedAmount",
+                data.get("utilized_amount", "N/A"),
+            )
+
+            handler.reply(
+                source,
+                f"✅ <b>Token Status: VALID</b>\n\n"
+                f"🔑 <b>Token:</b> <code>{app_settings.get_masked_token()}</code>\n"
+                f"💰 <b>Available:</b> ₹{available}\n"
+                f"📊 <b>Utilized:</b> ₹{utilized}\n"
+                f"🕐 <b>Checked:</b> {get_ist_now().strftime('%H:%M:%S')}\n\n"
+                f"✅ Everything is working!",
+                _back_button(),
+            )
+        else:
+            handler.reply(
+                source,
+                f"❌ <b>Token Status: INVALID / EXPIRED</b>\n\n"
+                f"🔑 <b>Token:</b> <code>{app_settings.get_masked_token()}</code>\n"
+                f"⚠️ <b>Error:</b> {_escape_html(test_result['message'])}\n\n"
+                f"🔄 Use <code>/set_token NEW_TOKEN</code> to update.",
+                _back_button(),
+            )
+
+    except Exception as e:
+        logger.error("Error in cmd_check_token: %s", e)
+        handler.reply(
+            source,
+            f"❌ Error: {str(e)[:200]}",
+            _back_button(),
+        )
+
+
+def cmd_token_status(source, handler):
+    """
+    /token_status
+    Quick overview of token without testing connection.
+    """
+    try:
+        if not TOKEN_IMPORTS_AVAILABLE:
+            handler.reply(
+                source,
+                "❌ Settings module not available.",
+                _back_button(),
+            )
+            return
+
+        token = app_settings.DHAN_ACCESS_TOKEN
+        client_id = app_settings.DHAN_CLIENT_ID
+
+        is_set = bool(token and len(token) > 10)
+        client_set = bool(client_id and len(client_id) > 3)
+
+        status_emoji = "✅" if is_set else "❌"
+        client_emoji = "✅" if client_set else "❌"
+
+        dhan_client = get_dhan_client()
+        connected = dhan_client.is_connected()
+
+        handler.reply(
+            source,
+            f"🔐 <b>Token Status Overview</b>\n\n"
+            f"{client_emoji} <b>Client ID:</b> {'Set' if client_set else 'NOT SET'}\n"
+            f"{status_emoji} <b>Access Token:</b> {app_settings.get_masked_token()}\n"
+            f"📏 <b>Token Length:</b> {len(token) if token else 0} chars\n"
+            f"🔗 <b>Connected:</b> {'Yes ✅' if connected else 'No ❌'}\n\n"
+            f"<b>💡 Commands:</b>\n"
+            f"  <code>/set_token TOKEN</code> - Update token\n"
+            f"  <code>/check_token</code> - Test if token works",
+            _back_button(),
+        )
+
+    except Exception as e:
+        logger.error("Error in cmd_token_status: %s", e)
+        handler.reply(
+            source,
+            f"❌ Error: {str(e)[:200]}",
+            _back_button(),
+        )
+
+
+# ══════════════════════════════════════════════════════════
 # HELP / MENU COMMAND
 # ══════════════════════════════════════════════════════════
 
@@ -1994,7 +2248,8 @@ def cmd_help(source, handler):
         "💼 <b>Portfolio</b> — Capital, Positions, Trades, P&amp;L\n"
         "🧠 <b>Analysis</b> — Signals, Brains, Watchlist\n"
         "⚙️ <b>Settings</b> — Config, Mode, Risk, Reports\n"
-        "🚨 <b>Emergency</b> — Kill, Close positions\n\n"
+        "🚨 <b>Emergency</b> — Kill, Close positions\n"
+        "🔑 <b>Token</b> — Set, Check, Status of Dhan token\n\n"
         "<i>You can also type commands like /status directly.</i>"
     )
 
@@ -2033,8 +2288,14 @@ __all__ = [
     "cmd_kill",
     "cmd_close",
     "cmd_closeall",
+    # Token Management (NEW)
+    "cmd_set_token",
+    "cmd_check_token",
+    "cmd_token_status",
     # Help
     "cmd_help",
     # Callback handler (buttons)
     "handle_callback",
-]
+]                
+                
+        

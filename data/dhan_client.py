@@ -120,6 +120,72 @@ class DhanClient:
             logger.error(f"Failed to initialize Dhan client: {e}")
             self._dhan = None
     
+    # ══════════════════════════════════════════════════════
+    # TOKEN REFRESH (NEW - for Telegram /set_token)
+    # ══════════════════════════════════════════════════════
+    
+    def refresh_connection(self):
+        """
+        Reconnect using the latest token from settings.
+        Called after /set_token updates the token.
+        """
+        try:
+            from config.settings import settings
+            self.client_id = settings.DHAN_CLIENT_ID
+            self.access_token = settings.DHAN_ACCESS_TOKEN
+            self.connected = False
+            self._dhan = None
+            
+            if self.client_id and self.access_token:
+                self._initialize_client()
+                # Auto-test connection after refresh
+                self.connect()
+                logger.info("[Dhan] Connection refreshed with new token")
+            else:
+                logger.warning("[Dhan] Cannot refresh - missing client_id or token")
+        except Exception as e:
+            logger.error(f"[Dhan] Failed to refresh connection: {e}")
+            self.connected = False
+    
+    def test_connection(self) -> Dict:
+        """
+        Test if current token works. Returns status dict.
+        Used by /check_token command.
+        """
+        try:
+            if not self._dhan:
+                return {
+                    "connected": False,
+                    "message": "Client not initialized. Use /set_token first.",
+                    "data": {}
+                }
+            
+            result = self._dhan.get_fund_limits()
+            
+            if isinstance(result, dict) and result.get('status') == 'success':
+                self.connected = True
+                return {
+                    "connected": True,
+                    "message": "Token is valid ✅",
+                    "data": result.get('data', {})
+                }
+            else:
+                self.connected = False
+                remarks = result.get('remarks', {}) if isinstance(result, dict) else {}
+                error_msg = remarks.get('error_message', str(result))
+                return {
+                    "connected": False,
+                    "message": f"Token rejected: {error_msg}",
+                    "data": {}
+                }
+        except Exception as e:
+            self.connected = False
+            return {
+                "connected": False,
+                "message": f"Connection failed: {str(e)}",
+                "data": {}
+            }
+    
     def get_available_methods(self) -> List[str]:
         """Get list of available API methods."""
         if self._dhan:

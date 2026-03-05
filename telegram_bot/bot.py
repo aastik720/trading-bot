@@ -368,35 +368,43 @@ class TelegramBotHandler:
             cmd_closeall,
             cmd_help,
             handle_callback,
+            # Token commands (NEW)
+            cmd_set_token,
+            cmd_check_token,
+            cmd_token_status,
         )
 
         bot = self._bot
 
         # ── Command → handler mapping ──
         command_map = {
-            "start":     cmd_start,
-            "stop":      cmd_stop,
-            "pause":     cmd_pause,
-            "resume":    cmd_resume,
-            "restart":   cmd_restart,
-            "status":    cmd_status,
-            "health":    cmd_health,
-            "portfolio": cmd_portfolio,
-            "positions": cmd_positions,
-            "trades":    cmd_trades,
-            "pnl":       cmd_pnl,
-            "signals":   cmd_signals,
-            "brains":    cmd_brains,
-            "watchlist": cmd_watchlist,
-            "settings":  cmd_settings,
-            "mode":      cmd_mode,
-            "risk":      cmd_risk,
-            "report":    cmd_report,
-            "kill":      cmd_kill,
-            "close":     cmd_close,
-            "closeall":  cmd_closeall,
-            "help":      cmd_help,
-            "menu":      cmd_help,
+            "start":        cmd_start,
+            "stop":         cmd_stop,
+            "pause":        cmd_pause,
+            "resume":       cmd_resume,
+            "restart":      cmd_restart,
+            "status":       cmd_status,
+            "health":       cmd_health,
+            "portfolio":    cmd_portfolio,
+            "positions":    cmd_positions,
+            "trades":       cmd_trades,
+            "pnl":          cmd_pnl,
+            "signals":      cmd_signals,
+            "brains":       cmd_brains,
+            "watchlist":    cmd_watchlist,
+            "settings":     cmd_settings,
+            "mode":         cmd_mode,
+            "risk":         cmd_risk,
+            "report":       cmd_report,
+            "kill":         cmd_kill,
+            "close":        cmd_close,
+            "closeall":     cmd_closeall,
+            "help":         cmd_help,
+            "menu":         cmd_help,
+            # Token commands (NEW)
+            "set_token":    cmd_set_token,
+            "check_token":  cmd_check_token,
+            "token_status": cmd_token_status,
         }
 
         # Register each command
@@ -458,8 +466,7 @@ class TelegramBotHandler:
             "✅ Registered %d commands + callback handler",
             len(command_map),
         )
-
-    # ================================================================ #
+        # ================================================================ #
     #  POLLING (Separate Thread) — Simple, no async                     #
     # ================================================================ #
 
@@ -760,4 +767,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"  ❌ Error: {e}")
 
-    print("\n" + "=" * 60 + "\n")
+    print("\n" + "=" * 60 + "\n")        
