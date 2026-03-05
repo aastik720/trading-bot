@@ -1,0 +1,15 @@
+#	File	Type
+1	deployment/setup.sh	NEW
+2	deployment/trading-bot.service	NEW
+3	docs/AWS_SETUP.md	NEW
+Phase 10 — 5 NEW Files + 4 UPDATES
+#	File	Type
+4	core/live_engine.py	NEW
+5	backtesting/backtest_engine.py	NEW
+6	backtesting/performance_analyzer.py	NEW
+7	tests/test_core.py	NEW
+8	scripts/health_check.py	NEW
+9	main.py	UPDATE
+10	requirements.txt	UPDATE
+11	telegram/handlers.py	UPDATE
+12	config/constants.py	UPDATE

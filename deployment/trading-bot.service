@@ -1,0 +1,295 @@
+#===============================================================================
+# TRADING BOT - SYSTEMD SERVICE FILE
+#===============================================================================
+#
+# This service file keeps the Trading Bot running 24/7 on your EC2 instance.
+#
+# Features:
+#   - Auto-start on system boot
+#   - Auto-restart on crash (after 10 seconds)
+#   - Resource limits (memory, CPU)
+#   - Security hardening
+#   - Proper logging to journald
+#   - Watchdog for unresponsive detection
+#
+# Installation:
+#   1. Copy to systemd directory:
+#      sudo cp deployment/trading-bot.service /etc/systemd/system/
+#
+#   2. Reload systemd:
+#      sudo systemctl daemon-reload
+#
+#   3. Enable auto-start on boot:
+#      sudo systemctl enable trading-bot
+#
+#   4. Start the service:
+#      sudo systemctl start trading-bot
+#
+# Commands:
+#   Start:   sudo systemctl start trading-bot
+#   Stop:    sudo systemctl stop trading-bot
+#   Restart: sudo systemctl restart trading-bot
+#   Status:  sudo systemctl status trading-bot
+#   Logs:    sudo journalctl -u trading-bot -f
+#
+# IMPORTANT: Update the following before using:
+#   - User: Change 'ec2-user' to 'ubuntu' if using Ubuntu
+#   - Group: Change 'ec2-user' to 'ubuntu' if using Ubuntu
+#   - WorkingDirectory: Update path if different
+#   - ExecStart: Update path if different
+#
+# Author: Trading Bot
+# Phase: 9 - AWS Deployment
+#===============================================================================
+
+#-------------------------------------------------------------------------------
+# [Unit] Section - Service Description and Dependencies
+#-------------------------------------------------------------------------------
+[Unit]
+# Human-readable description shown in systemctl status
+Description=Trading Bot - Options Trading for Indian Markets (NSE)
+
+# Documentation URL (update with your repo)
+Documentation=https://github.com/USERNAME/trading-bot
+
+# Start after network is available
+# network.target = basic network is up
+# network-online.target = network is fully online (can reach internet)
+After=network.target network-online.target
+
+# We want network to be fully online before starting
+# This ensures API connections will work
+Wants=network-online.target
+
+# Optional: If you use a local database service, uncomment:
+# After=network.target network-online.target postgresql.service
+# Wants=postgresql.service
+
+#-------------------------------------------------------------------------------
+# [Service] Section - How to Run the Service
+#-------------------------------------------------------------------------------
+[Service]
+# Service type:
+# - simple: systemd considers service started immediately after ExecStart
+# - This is correct for our Python script that runs continuously
+Type=simple
+
+#-------------------------------------------------------------------------------
+# User and Group Configuration
+#-------------------------------------------------------------------------------
+# IMPORTANT: Change these to match your EC2 instance
+#
+# For Amazon Linux 2023:
+User=ec2-user
+Group=ec2-user
+#
+# For Ubuntu 22.04, change to:
+# User=ubuntu
+# Group=ubuntu
+#
+# For custom user:
+# User=tradingbot
+# Group=tradingbot
+
+#-------------------------------------------------------------------------------
+# Working Directory and Execution
+#-------------------------------------------------------------------------------
+# Directory where the bot code lives
+# IMPORTANT: Update this path to match your setup
+WorkingDirectory=/home/ec2-user/trading-bot
+
+# Command to start the bot
+# Uses the Python from virtual environment to ensure correct packages
+# IMPORTANT: Update this path to match your setup
+ExecStart=/home/ec2-user/trading-bot/venv/bin/python main.py
+
+# Optional: Commands to run before starting (uncomment if needed)
+# ExecStartPre=/bin/echo "Starting Trading Bot..."
+
+# Optional: Commands to run after stopping (uncomment if needed)
+# ExecStopPost=/bin/echo "Trading Bot stopped."
+
+#-------------------------------------------------------------------------------
+# Restart Policy
+#-------------------------------------------------------------------------------
+# Restart=always: Restart the service if it exits for ANY reason
+# Other options:
+#   - on-failure: Only restart on non-zero exit code
+#   - on-abnormal: Restart on signal, timeout, or watchdog
+#   - no: Never restart automatically
+Restart=always
+
+# Wait 10 seconds before restarting
+# This prevents rapid restart loops if there's a persistent error
+RestartSec=10
+
+# Maximum restart attempts within a time window
+# If service restarts more than 5 times in 300 seconds, stop trying
+StartLimitBurst=5
+StartLimitIntervalSec=300
+
+#-------------------------------------------------------------------------------
+# Environment Variables
+#-------------------------------------------------------------------------------
+# PYTHONUNBUFFERED=1: Disable Python output buffering
+# This ensures logs appear immediately in journald
+Environment=PYTHONUNBUFFERED=1
+
+# PYTHONDONTWRITEBYTECODE=1: Don't create .pyc files
+# Keeps the directory cleaner
+Environment=PYTHONDONTWRITEBYTECODE=1
+
+# Optional: Set timezone (uncomment if needed)
+# Environment=TZ=Asia/Kolkata
+
+# Optional: Additional environment variables
+# You can set non-sensitive config here
+# Environment=LOG_LEVEL=INFO
+# Environment=PAPER_TRADING=True
+
+# For sensitive data (API keys), use EnvironmentFile instead:
+# This reads environment variables from your .env file
+# EnvironmentFile=/home/ec2-user/trading-bot/.env
+
+#-------------------------------------------------------------------------------
+# Logging Configuration
+#-------------------------------------------------------------------------------
+# Send stdout and stderr to systemd journal
+# View with: journalctl -u trading-bot
+StandardOutput=journal
+StandardError=journal
+
+# Identifier used in syslog/journal
+# This makes it easy to filter: journalctl -t trading-bot
+SyslogIdentifier=trading-bot
+
+# Optional: Also log to a file (uncomment if you want file logs too)
+# StandardOutput=append:/home/ec2-user/trading-bot/logs/bot.log
+# StandardError=append:/home/ec2-user/trading-bot/logs/bot_error.log
+
+#-------------------------------------------------------------------------------
+# Security Hardening
+#-------------------------------------------------------------------------------
+# These settings limit what the service can do for security
+
+# ProtectSystem=full: Mount /usr and /boot as read-only
+# Prevents the bot from modifying system files
+ProtectSystem=full
+
+# ProtectHome=read-only: Make /home read-only except for working directory
+# Note: Commented out because we need to write to /home/ec2-user/trading-bot
+# ProtectHome=read-only
+
+# NoNewPrivileges=true: Prevent gaining new privileges via setuid/setgid
+# Good security practice for services
+NoNewPrivileges=true
+
+# PrivateTmp=true: Use private /tmp directory
+# Prevents other processes from accessing our temp files
+PrivateTmp=true
+
+# ProtectKernelTunables=true: Mount /proc/sys, /sys as read-only
+# Prevents modifying kernel settings
+ProtectKernelTunables=true
+
+# ProtectKernelModules=true: Deny module loading
+ProtectKernelModules=true
+
+# ProtectControlGroups=true: Mount cgroups as read-only
+ProtectControlGroups=true
+
+# RestrictRealtime=true: Deny realtime scheduling
+RestrictRealtime=true
+
+# RestrictSUIDSGID=true: Prevent creating SUID/SGID files
+RestrictSUIDSGID=true
+
+# Optional: Restrict network access (uncomment only if you want to limit)
+# RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# Optional: Restrict system calls (uncomment for extra security)
+# Warning: May break some functionality, test thoroughly
+# SystemCallFilter=@system-service
+# SystemCallArchitectures=native
+
+#-------------------------------------------------------------------------------
+# Resource Limits
+#-------------------------------------------------------------------------------
+# Prevent the bot from consuming too many resources
+
+# MemoryMax: Maximum memory the service can use
+# 512M is plenty for paper trading
+# Increase to 1G for production with many positions
+MemoryMax=512M
+
+# MemoryHigh: Soft limit - system will try to reclaim memory above this
+MemoryHigh=400M
+
+# CPUQuota: Maximum CPU time as percentage
+# 80% of one core - plenty for our bot
+CPUQuota=80%
+
+# TasksMax: Maximum number of processes/threads
+# 50 is enough for our bot (main + telegram + a few workers)
+TasksMax=50
+
+# Optional: IO limits (uncomment if needed)
+# IOWeight=50
+# IOReadBandwidthMax=/dev/sda 10M
+# IOWriteBandwidthMax=/dev/sda 5M
+
+#-------------------------------------------------------------------------------
+# Watchdog Configuration
+#-------------------------------------------------------------------------------
+# Watchdog monitors if the service becomes unresponsive
+
+# WatchdogSec: If service doesn't ping watchdog within this time, restart it
+# 300 = 5 minutes - if bot is unresponsive for 5 min, it's restarted
+# Note: Requires the application to send watchdog pings (sd_notify)
+# Our Python bot doesn't implement this yet, so this is informational
+WatchdogSec=300
+
+# Note: To fully use watchdog, add this to your Python code:
+# import systemd.daemon
+# systemd.daemon.notify('WATCHDOG=1')  # Call this periodically
+
+#-------------------------------------------------------------------------------
+# Timeouts
+#-------------------------------------------------------------------------------
+# TimeoutStartSec: How long to wait for service to start
+# 30 seconds is plenty for Python to initialize
+TimeoutStartSec=30
+
+# TimeoutStopSec: How long to wait for graceful shutdown
+# 30 seconds gives time to close positions and save state
+TimeoutStopSec=30
+
+# Optional: Send SIGKILL after timeout (default behavior)
+# TimeoutStopFailureMode=terminate
+
+#-------------------------------------------------------------------------------
+# Process Management
+#-------------------------------------------------------------------------------
+# KillMode=mixed: Send SIGTERM to main process, SIGKILL to remaining after timeout
+KillMode=mixed
+
+# KillSignal: Signal to send when stopping
+KillSignal=SIGTERM
+
+# SendSIGKILL=yes: Send SIGKILL if process doesn't stop after timeout
+SendSIGKILL=yes
+
+# FinalKillSignal: Signal to send after TimeoutStopSec
+FinalKillSignal=SIGKILL
+
+#-------------------------------------------------------------------------------
+# [Install] Section - When to Start the Service
+#-------------------------------------------------------------------------------
+[Install]
+# WantedBy=multi-user.target: Start when system reaches multi-user mode
+# This is the normal target for servers (like runlevel 3)
+# The bot will start automatically on system boot
+WantedBy=multi-user.target
+
+# Optional: Also start in graphical mode (uncomment if needed)
+# WantedBy=multi-user.target graphical.target

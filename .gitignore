@@ -1,0 +1,121 @@
+# ══════════════════════════════════════════════════════════
+# TRADING BOT - .gitignore
+# ══════════════════════════════════════════════════════════
+
+
+# ──────────────────────────────────────
+# SECRETS (MOST IMPORTANT!)
+# ──────────────────────────────────────
+# Never upload your real API keys
+.env
+.env.production
+.env.staging
+.env.local
+*.secret
+*.key
+
+
+# ──────────────────────────────────────
+# DATABASE
+# ──────────────────────────────────────
+# Your trade history database
+*.db
+*.sqlite
+*.sqlite3
+trading_bot.db
+
+
+# ──────────────────────────────────────
+# LOGS
+# ──────────────────────────────────────
+# Log files can get huge
+logs/
+*.log
+
+
+# ──────────────────────────────────────
+# PYTHON
+# ──────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+
+# ──────────────────────────────────────
+# VIRTUAL ENVIRONMENT
+# ──────────────────────────────────────
+venv/
+env/
+.venv/
+ENV/
+
+
+# ──────────────────────────────────────
+# IDE / EDITOR
+# ──────────────────────────────────────
+# VS Code
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+
+# ──────────────────────────────────────
+# OS FILES
+# ──────────────────────────────────────
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Linux
+*.directory
+
+
+# ──────────────────────────────────────
+# CACHE
+# ──────────────────────────────────────
+data_cache/
+.cache/
+*.pickle
+*.pkl
+
+
+# ──────────────────────────────────────
+# PAPER TRADING DATA
+# ──────────────────────────────────────
+paper_trades/
+backups/
+
+
+# ──────────────────────────────────────
+# CHARTS (from PDF generator)
+# ──────────────────────────────────────
+pdf_charts/
+*.pdf
+
+
+# ──────────────────────────────────────
+# TESTING
+# ──────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/

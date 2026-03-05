@@ -1,0 +1,54 @@
+trading_bot/
+│
+├── .env                              # Your API keys & secrets
+├── requirements.txt                  # Python dependencies
+├── main.py                           # The main entry point to run everything
+├── trading_bot.db                    # SQLite Database (Auto-generated)
+│
+├── config/                           # PHASE 1 (Foundation)
+│   ├── __init__.py
+│   ├── constants.py                  # Global constants (BUY, SELL, etc.)
+│   └── settings.py                   # Loads .env into settings object
+│
+├── utils/                            # PHASE 1 (Foundation)
+│   ├── __init__.py
+│   ├── exceptions.py                 # Custom error handling
+│   ├── helpers.py                    # Time, math, and formatting tools
+│   └── indian_market.py              # NSE market timings and expiries
+│
+├── data/                             # PHASE 2 (Data Layer)
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── dhan_client.py                # Dhan API connection
+│   ├── finnhub_client.py             # Finnhub News API connection
+│   └── market_data.py                # Unified data aggregator
+│
+├── database/                         # PHASE 3 (Database)
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── models.py                     # SQLAlchemy Database Tables
+│   └── repository.py                 # DB Read/Write operations
+│
+├── brains/                           # PHASE 4 (Strategy)
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── base.py                       # Base logic for all brains
+│   ├── coordinator.py                # Consolidates all brain votes
+│   └── technical.py                  # RSI, MACD, SMA algorithms
+│
+├── risk/                             # PHASE 5 (Risk Management)
+│   ├── __init__.py
+│   ├── circuit_breaker.py            # Emergency shutdown logic
+│   └── risk_manager.py               # Stop-loss & capital gatekeeper
+│
+├── core/                             # PHASE 6 (Trading Engine)
+│   ├── __init__.py
+│   ├── bot.py                        # The Main Infinite Trading Loop!
+│   ├── order_manager.py              # Creates and executes orders
+│   └── paper_engine.py               # Simulates capital and execution
+│
+└── telegram/                         # PHASE 7 (Remote Control)
+    ├── __init__.py
+    ├── alerts.py                     # Auto-sends trade/market notifications
+    ├── bot.py                        # Threading & Telegram Setup
+    └── handlers.py                   # All 22 remote /commands

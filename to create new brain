@@ -1,0 +1,8 @@
+🧠 Adding a New Brain - Complete Guide
+📁 Files You Need to Modify
+#	File	Action	Purpose
+1️⃣	brains/new_brain.py	CREATE	Your new brain logic
+2️⃣	config/constants.py	ADD	Brain name constant
+3️⃣	config/settings.py	ADD	Brain weight setting
+4️⃣	.env	ADD	Weight configuration
+5️⃣	brains/__init__.py	UPDATE	Register & export brain
